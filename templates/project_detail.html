@@ -1,0 +1,75 @@
+<h1>Проект: {{ project.name }}</h1>
+
+<!-- форма загрузки шлифов -->
+<h2>Загрузить шлифы</h2>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <input type="file" name="files" multiple webkitdirectory directory>
+  <button type="submit">Загрузить</button>
+</form>
+
+<hr>
+
+<h2>Загруженные шлифы:</h2>
+<ul>
+  {% for sample in samples %}
+    <li>
+      <a href="{% url 'sample_detail' sample.id %}">
+        {{ sample.file.name }}
+      </a>
+      {% if sample.class_label == 1 %}
+        <span style="color: green;">(Класс 1)</span>
+      {% endif %}
+    </li>
+  {% empty %}
+    <li>Нет загруженных шлифов.</li>
+  {% endfor %}
+</ul>
+
+<!-- кнопка классификации -->
+<h2>Классификация пород</h2>
+<form method="post" action="{% url 'classify_project' project.id %}">
+  {% csrf_token %}
+  <button type="submit">Классифицировать</button>
+</form>
+
+{% if project.class_distribution %}
+  <h2>Распределение классов</h2>
+  <ul>
+    {% for cls, perc in project.class_distribution.items %}
+      {% if cls == "0" or cls == 0 %}
+        <li>Carbonate: {{ perc }}%</li>
+      {% elif cls == "1" or cls == 1 %}
+        <li>Clastic: {{ perc }}%</li>
+      {% elif cls == "2" or cls == 2 %}
+        <li>Shale: {{ perc }}%</li>
+      {% else %}
+        <li>Класс {{ cls }}: {{ perc }}%</li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+{% endif %}
+
+
+<!-- Фулл анализ -->
+<form method="post" action="{% url 'full_analysis' project.id %}">
+  {% csrf_token %}
+  <button type="submit">Фулл анализ (для класса 1)</button>
+</form>
+
+{% if project.global_metrics2_hist and project.global_diam_hist %}
+  <h2>Общая статистика</h2>
+
+  <figure style="display:inline-block; text-align:center; margin:10px;">
+    <img src="{{ project.global_metrics2_hist.url }}" width="250">
+    <figcaption>Гистограмма пористости </figcaption>
+  </figure>
+
+  <figure style="display:inline-block; text-align:center; margin:10px;">
+    <img src="{{ project.global_diam_hist.url }}" width="250">
+    <figcaption>Гистограмма размеров зерен</figcaption>
+  </figure>
+
+  <p>Средний размер зерен (пикс.): {{ project.global_stats.mean_metric1 }}</p>
+  <p>Средняя пористость: {{ project.global_stats.mean_metric2 }}</p>
+{% endif %}

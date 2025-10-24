@@ -1,0 +1,40 @@
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+
+  <!-- Слева сверху оригинал -->
+  <div>
+    <h3>Оригинал</h3>
+    <img src="{{ sample.file.url }}" width="400">
+  </div>
+
+  <!-- Справа сверху метрики -->
+  <div>
+    <h3>Метрики</h3>
+    {% if analysis %}
+      <p>Средний размер зерна: {{ analysis.metric_1 }}</p>
+      <p>Пористость: {{ analysis.metric_2 }}</p>
+    {% else %}
+      <p>Анализ ещё не проведён.</p>
+    {% endif %}
+  </div>
+
+  <!-- Слева снизу гистограмма -->
+  <div>
+    <h3>Сегментация</h3>
+    {% if overlay %}
+      <img src="{{ overlay }}" width="400">
+    {% else %}
+      <p>Нет данных сегментации.</p>
+    {% endif %}
+  </div>
+
+  <!-- Справа снизу оверлей -->
+  <div>
+    <h3>Размер зерен</h3>
+    {% if hist %}
+      <img src="{{ hist }}" width="300">
+    {% else %}
+      <p>Нет данных гистограммы.</p>
+    {% endif %}
+  </div>
+
+</div>
