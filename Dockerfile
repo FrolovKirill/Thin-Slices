@@ -29,4 +29,4 @@ RUN chmod +x /app/entrypoint.sh
 EXPOSE 8000
 
 # Используем entrypoint
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["sh", "/app/entrypoint.sh"]
