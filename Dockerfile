@@ -5,6 +5,7 @@ FROM python:3.13.7-slim
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
+    make \
  && rm -rf /var/lib/apt/lists/*
 
 # Устанавливаем рабочую директорию
@@ -20,8 +21,12 @@ RUN pip install -r requirements.txt
 # Копируем весь проект
 COPY . .
 
+# Копируем и делаем исполняемым entrypoint
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 # Экспонируем порт Django
 EXPOSE 8000
 
-# Команда для запуска Django сервера
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Используем entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
