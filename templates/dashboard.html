@@ -1,0 +1,12 @@
+<h1>Личный кабинет: {{ request.user.username }}</h1>
+
+<h2>Ваши проекты</h2>
+<ul>
+  {% for project in projects %}
+    <li><a href="{% url 'project_detail' project.id %}">{{ project.name }}</a></li>
+  {% empty %}
+    <li>У вас пока нет проектов</li>
+  {% endfor %}
+</ul>
+
+<a href="{% url 'create_project' %}">Создать новый проект</a>
