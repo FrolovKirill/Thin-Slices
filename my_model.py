@@ -64,21 +64,23 @@ def process_image(image):
 
 def segment_image(image):
     imggg = np.array(image.convert('L'))
-    
-    # Бинаризация
-    ret, binary = cv.threshold(imggg, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
-    
-    # Connected components
-    num_labels, labels, stats, centroids = cv.connectedComponentsWithStats(binary)
-    
-    diameters = []
-    for i in range(1, num_labels):  # пропускаем фон (0)
-        area = stats[i, cv.CC_STAT_AREA]
-        if area > 50:
-            # Диаметр эквивалентной окружности
-            diameter = 2 * np.sqrt(area / np.pi)
-            diameters.append(diameter)
-    
+    blur = cv.GaussianBlur(imggg,(5,5),0)
+    ret3,binary = cv.threshold(blur,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU)
+    binary = morphology.remove_small_objects(binary.astype(bool), 50)  
+    binary = binary.astype(np.uint8)
+    mask = binary > 0  
+
+    distance = ndi.distance_transform_edt(mask)
+    coords = peak_local_max(distance, footprint=np.ones((15, 15)), labels=mask)
+
+    markers = np.zeros_like(distance, dtype=int)
+    for i, (r, c) in enumerate(coords, start=1):
+        markers[r, c] = i
+
+    labels = watershed(-distance, markers, mask=mask)
+
+    props = measure.regionprops(labels)
+    diameters = [p.equivalent_diameter for p in props]
     return diameters
             
 def create_overlay(original_path, mask, save_path):
