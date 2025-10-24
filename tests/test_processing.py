@@ -1,6 +1,9 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import numpy as np
 from PIL import Image
-from my_model import process_image, segment_image, create_overlay
+from model.my_model import process_image, segment_image, create_overlay
 
 def make_test_image(size=(64, 64)):
     arr = np.zeros((size[0], size[1], 3), dtype=np.uint8)

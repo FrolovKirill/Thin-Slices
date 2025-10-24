@@ -1,5 +1,7 @@
+import sys
 import os
-from my_model import run_full_analysis
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from model.my_model import run_full_analysis
 from PIL import Image
 import numpy as np
 
