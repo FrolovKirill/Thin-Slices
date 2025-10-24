@@ -158,6 +158,8 @@ def run_full_analysis(image_path):
 
     # сохраняем гистограммы
     hist1_path = "media/analysis/hist1.png"
+    if not os.path.exists("media/analysis"):
+        os.makedirs("media/analysis")
     plt.figure()
     plt.hist(diameters, bins=10)
     plt.savefig(hist1_path)
