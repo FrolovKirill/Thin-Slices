@@ -4,7 +4,7 @@ from .models import Project, Sample, AnalysisResult
 from django import forms
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
-from my_model import classify_image, run_full_analysis
+from model.my_model import classify_image, run_full_analysis
 from django.contrib.auth import logout
 import matplotlib.pyplot as plt
 import io, base64
