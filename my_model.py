@@ -23,9 +23,48 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
+# Сначала создаем модель с такой же архитектурой
+MODEL_PATH = "model.pth"
+if torch.cuda.is_available():
+    MODEL_DEVICE = "cuda"
+elif torch.backends.mps.is_available():
+    MODEL_DEVICE = "mps"
+else:
+    MODEL_DEVICE = "cpu"
+
+loaded_model = resnet50(pretrained=False)
+num_features = loaded_model.fc.in_features
+loaded_model.fc = nn.Linear(num_features, 3)
+
+# Затем загружаем веса
+loaded_model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device(MODEL_DEVICE)))
+loaded_model.eval()  # Переводим в режим оценки
+device = torch.device(MODEL_DEVICE)
+loaded_model = loaded_model.to(device)
+
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
+])
+
 def classify_image(image_path):
-    """ Пока тут заглушка """
-    return np.random.choice([0, 1, 2])
+    image = Image.open(image_path)
+    with torch.no_grad():
+        if image is not None:
+            img_array = np.array(image)
+            img_array = cv.cvtColor(img_array, cv.COLOR_RGB2BGR)  
+            img_transformed = transform(Image.fromarray(img_array))
+            img_transformed = img_transformed.unsqueeze(0).to(device)
+
+            output = loaded_model(img_transformed)
+            probs = torch.nn.functional.softmax(output, dim=1).cpu().numpy()[0]
+            return np.argmax(probs)
+        else:
+            return 0
 
 def process_image(image):
     # Конвертируем в numpy array
