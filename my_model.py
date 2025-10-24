@@ -28,84 +28,59 @@ def classify_image(image_path):
     return np.random.choice([0, 1, 2])
 
 def process_image(image):
-    # Конвертируем в numpy array
+    # Загрузка и обработка изображения первым способом
     im = np.array(image)
     
-    # Альтернативный метод 1: работа в HSV пространстве
-    hsv = cv.cvtColor(im, cv.COLOR_RGB2HSV)
+    # Первый метод: цветовая обработка
+    R = (im[:, :, 0] - im[:, :, 0].min()) / (im[:, :, 0].max() - im[:, :, 0].min() + 1e-8)
+    G = (im[:, :, 1] - im[:, :, 1].min()) / (im[:, :, 1].max() - im[:, :, 1].min() + 1e-8)
+    B = (im[:, :, 2] - im[:, :, 2].min()) / (im[:, :, 2].max() - im[:, :, 2].min() + 1e-8)
     
-    # Используем saturation и value каналы
-    saturation = hsv[:, :, 1].astype(np.float32)
-    value = hsv[:, :, 2].astype(np.float32)
-    
-    # Нормализуем
-    saturation_norm = (saturation - saturation.min()) / (saturation.max() - saturation.min() + 1e-8)
-    value_norm = (value - value.min()) / (value.max() - value.min() + 1e-8)
-    
-    # Комбинируем saturation и value
-    img1 = saturation_norm * value_norm
+    img1 = (B - R)
+    img1 = img1 - img1.min()
     img1 = 255 * (img1 / (img1.max() + 1e-8))
     img1 = img1.astype(np.uint8)
     
-    # Адаптивная пороговая обработка вместо Оцу
-    th1 = cv.adaptiveThreshold(img1, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                              cv.THRESH_BINARY, 11, 2)
-    class1 = (th1 == 255)
+    # Пороговая обработка Оцу
+    ret1, th1 = cv.threshold(img1, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
+    class1 = (th1 == 255)  # Первый класс
     
-    # Альтернативный метод 2: лапласиан градиентов + морфологические операции
+    # Второй метод: градации серого + Гауссово размытие
     img2 = np.array(image.convert('L'))
+    blur = cv.GaussianBlur(img2, (5, 5), 0)
+    ret2, th2 = cv.threshold(blur, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
+    class2 = (th2 == 255)  # Второй класс
     
-    # Лапласиан для выделения границ
-    laplacian = cv.Laplacian(img2, cv.CV_64F)
-    laplacian_abs = np.absolute(laplacian)
-    laplacian_8u = np.uint8(laplacian_abs / laplacian_abs.max() * 255)
+    # Три метода разрешения конфликтов
+    intersection = class1 & class2  # Пересечение классов
     
-    # Морфологическое закрытие для объединения областей
-    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
-    closed = cv.morphologyEx(laplacian_8u, cv.MORPH_CLOSE, kernel)
+    # Метод 1: пересечение отдаем в 1 класс
+    result_method1 = np.zeros_like(img1, dtype=np.uint8)
+    result_method1[class2] = 2  # Сначала назначаем второй класс
+    result_method1[class1] = 1  # Перезаписываем первым классом (включая пересечение)
+    result_method1[~(class1 | class2)] = 3  # Третий класс
     
-    # Пороговая обработка
-    ret2, th2 = cv.threshold(closed, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
-    class2 = (th2 == 255)
-    
-    # Разрешение конфликтов: взвешенное объединение
-    intersection = class1 & class2
-    union = class1 | class2
-    
-    # Создаем результат с приоритетом уверенных областей
-    result = np.zeros_like(img1, dtype=np.uint8)
-    
-    # Области, обнаруженные обоими методами - высокая уверенность (класс 1)
-    result[intersection] = 1
-    
-    # Области, обнаруженные только HSV методом (класс 2)
-    result[class1 & ~intersection] = 2
-    
-    # Области, обнаруженные только градиентным методом (класс 3)
-    result[class2 & ~intersection] = 3
-    
-    # Все остальное - фон (класс 0)
-    result[~union] = 0
-    
-    return result, class1, class2, intersection
+    return result_method1, class1, class2, intersection
 
 def segment_image(image):
     imggg = np.array(image.convert('L'))
-    
-    # Бинаризация
-    ret, binary = cv.threshold(imggg, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
-    
-    # Connected components
-    num_labels, labels, stats, centroids = cv.connectedComponentsWithStats(binary)
-    
-    diameters = []
-    for i in range(1, num_labels):  # пропускаем фон (0)
-        area = stats[i, cv.CC_STAT_AREA]
-        if area > 50:
-            # Диаметр эквивалентной окружности
-            diameter = 2 * np.sqrt(area / np.pi)
-            diameters.append(diameter)
-    
+    blur = cv.GaussianBlur(imggg,(5,5),0)
+    ret3,binary = cv.threshold(blur,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU)
+    binary = morphology.remove_small_objects(binary.astype(bool), 50)  
+    binary = binary.astype(np.uint8)
+    mask = binary > 0  
+
+    distance = ndi.distance_transform_edt(mask)
+    coords = peak_local_max(distance, footprint=np.ones((15, 15)), labels=mask)
+
+    markers = np.zeros_like(distance, dtype=int)
+    for i, (r, c) in enumerate(coords, start=1):
+        markers[r, c] = i
+
+    labels = watershed(-distance, markers, mask=mask)
+
+    props = measure.regionprops(labels)
+    diameters = [p.equivalent_diameter for p in props]
     return diameters
             
 def create_overlay(original_path, mask, save_path):
